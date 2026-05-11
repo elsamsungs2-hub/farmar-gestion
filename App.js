@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { StyleSheet, Text, View, TextInput, TouchableOpacity, StatusBar, Alert, ScrollView } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { CameraView, useCameraPermissions } from 'expo-camera';
-import { Search, Barcode, FileText, X, LayoutGrid, Pill, SprayCan, Sparkles, Package } from 'lucide-react-native';
+import { Search, Barcode, FileText, X, LayoutGrid, Pill, SprayCan, Sparkles, Package, User, MapPin } from 'lucide-react-native';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { DATA_PRODUCTOS } from './productos';
@@ -16,11 +16,25 @@ const CATEGORIAS = [
 ];
 
 export default function App() {
+  // --- ESTADOS DE LOGIN ---
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [sucursal, setSucursal] = useState('');
+  const [empleado, setEmpleado] = useState('');
+
+  // --- ESTADOS DE LA APP ---
   const [busqueda, setBusqueda] = useState('');
   const [escaneando, setEscaneando] = useState(false);
   const [categoriaActiva, setCategoriaActiva] = useState('Todos');
   const [productoEncontrado, setProductoEncontrado] = useState(null);
   const [permission, requestPermission] = useCameraPermissions();
+
+  const handleLogin = () => {
+    if (sucursal.trim() && empleado.trim()) {
+      setIsLoggedIn(true);
+    } else {
+      Alert.alert("Acceso", "Por favor completa la sucursal y tu nombre.");
+    }
+  };
 
   const buscarProducto = (texto) => {
     setBusqueda(texto);
@@ -40,7 +54,7 @@ export default function App() {
     categoriaActiva === 'Todos' || p.categoria === categoriaActiva
   );
 
-const generarPDF = async () => {
+  const generarPDF = async () => {
     const hoy = new Date();
     const ultimoDia = new Date(hoy.getFullYear(), hoy.getMonth() + 1, 0).getDate();
     const vigencia = `${ultimoDia}/${String(hoy.getMonth() + 1).padStart(2, '0')}/${hoy.getFullYear()}`;
@@ -48,13 +62,11 @@ const generarPDF = async () => {
     const etiquetasHtml = productosFiltrados.map(p => `
       <div class="etiqueta">
         <div class="header-etiqueta">${p.nombre.toUpperCase()}</div>
-        
         <div class="precio-section">
           <span class="monto">
             <span class="signo">$</span>${p.precio.toLocaleString('es-AR')}<span class="coma">,</span>
           </span>
         </div>
-        
         <div class="info-container">
           <div class="precio-info">Precio Regular $ ${p.precio.toLocaleString('es-AR')},</div>
           <div class="footer-etiqueta">
@@ -65,93 +77,31 @@ const generarPDF = async () => {
       </div>
     `).join('');
 
-    const htmlContent = `
-      <html>
-        <head>
-          <style>
-            /* Márgenes de página al mínimo absoluto */
-            @page { margin: 1mm; size: A4; }
-            body { 
-              font-family: 'Helvetica', Arial, sans-serif; 
-              margin: 0; padding: 0;
-              display: flex; flex-wrap: wrap;
-              background-color: white;
-              justify-content: flex-start;
-            }
-            .etiqueta { 
-              width: 25%; /* 4 etiquetas por fila exactas */
-              height: 22mm; /* AJUSTE CRÍTICO: Reducido a 22mm para máxima compresión vertical */
-              border: 0.1pt solid #eee; /* Guía de corte casi invisible */
-              padding: 0 1.2mm; /* Padding vertical CERO, solo lateral */
-              box-sizing: border-box;
-              display: flex;
-              flex-direction: column;
-              justify-content: space-between; /* Mantiene el pie abajo, compacta el resto */
-              overflow: hidden;
-            }
-            .header-etiqueta { 
-              font-size: 7pt; /* Ligeramente más chico para comprimir */
-              font-weight: bold;
-              line-height: 0.85; /* Interlineado mínimo */
-              height: 14pt; /* Altura fija para 2 líneas compactas */
-              margin-top: 0.5mm;
-              overflow: hidden;
-              display: -webkit-box;
-              -webkit-line-clamp: 2;
-              -webkit-box-orient: vertical;
-            }
-            .precio-section { 
-              text-align: center;
-              margin: -2mm 0; /* AJUSTE AGRESIVO: Margen negativo para pegar todo al precio */
-              line-height: 1;
-            }
-            .monto { 
-              font-size: 28pt; /* Mantenemos el precio gigante */
-              font-weight: 900; 
-              letter-spacing: -2px;
-              display: flex;
-              align-items: center;
-              justify-content: center;
-            }
-            /* Alineación precisa del signo $ a centro del número */
-            .signo { font-size: 14pt; margin-right: 1pt; font-weight: bold; }
-            .coma { font-size: 18pt; font-weight: bold; }
-            
-            .info-container {
-              margin-top: auto; /* Mantiene bloque inferior al pie de la etiqueta de 22mm */
-            }
-            .precio-info { 
-              font-size: 5.5pt; /* Más chico para compactar */
-              text-align: center;
-              margin-bottom: 0.2mm;
-              line-height: 1;
-            }
-            .footer-etiqueta { 
-              display: flex; 
-              justify-content: space-between; 
-              align-items: flex-end;
-              border-top: 0.5pt solid #000;
-              padding-top: 0.3mm;
-              margin-bottom: 0.3mm;
-            }
-            .codigo { font-size: 6pt; font-family: 'monospace'; }
-            .fecha { font-size: 6pt; font-weight: bold; }
-          </style>
-        </head>
-        <body>
-          ${etiquetasHtml}
-        </body>
-      </html>
-    `;
+    const htmlContent = `<html><head><style>
+      @page { margin: 1mm; size: A4; }
+      body { font-family: 'Helvetica', Arial, sans-serif; margin: 0; padding: 0; display: flex; flex-wrap: wrap; background-color: white; justify-content: flex-start; }
+      .etiqueta { width: 25%; height: 22mm; border: 0.1pt solid #eee; padding: 0 1.2mm; box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between; overflow: hidden; }
+      .header-etiqueta { font-size: 7pt; font-weight: bold; line-height: 0.85; height: 14pt; margin-top: 0.5mm; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+      .precio-section { text-align: center; margin: -2mm 0; line-height: 1; }
+      .monto { font-size: 28pt; font-weight: 900; letter-spacing: -2px; display: flex; align-items: center; justify-content: center; }
+      .signo { font-size: 14pt; margin-right: 1pt; font-weight: bold; }
+      .coma { font-size: 18pt; font-weight: bold; }
+      .info-container { margin-top: auto; }
+      .precio-info { font-size: 5.5pt; text-align: center; margin-bottom: 0.2mm; line-height: 1; }
+      .footer-etiqueta { display: flex; justify-content: space-between; align-items: flex-end; border-top: 0.5pt solid #000; padding-top: 0.3mm; margin-bottom: 0.3mm; }
+      .codigo { font-size: 6pt; font-family: 'monospace'; }
+      .fecha { font-size: 6pt; font-weight: bold; }
+    </style></head><body>${etiquetasHtml}</body></html>`;
 
     try {
       const { uri } = await Print.printToFileAsync({ html: htmlContent });
       await Sharing.shareAsync(uri, { UTI: '.pdf', mimeType: 'application/pdf' });
     } catch (error) {
-      Alert.alert("Error", "No se pudo generar el PDF de etiquetas ultra-compactas");
+      Alert.alert("Error", "No se pudo generar el PDF");
     }
   };
-          
+
+  // --- VISTA: ESCÁNER ---
   if (escaneando) {
     return (
       <View style={styles.scannerContainer}>
@@ -162,6 +112,48 @@ const generarPDF = async () => {
     );
   }
 
+  // --- VISTA: LOGIN ---
+  if (!isLoggedIn) {
+    return (
+      <View style={styles.loginContainer}>
+        <StatusBar barStyle="light-content" backgroundColor="#004a99" />
+        <View style={styles.loginCard}>
+          <View style={styles.loginHeaderIcon}>
+            <Pill color="#004a99" size={40} />
+          </View>
+          <Text style={styles.loginTitle}>SISTEMA FARMAR</Text>
+          <Text style={styles.loginSubtitle}>Gestión de Góndolas</Text>
+          
+          <View style={styles.inputWrapper}>
+            <MapPin color="#666" size={20} style={styles.inputIcon} />
+            <TextInput 
+              style={styles.loginInput} 
+              placeholder="Sucursal (ej: Empedrado)" 
+              value={sucursal}
+              onChangeText={setSucursal}
+            />
+          </View>
+
+          <View style={styles.inputWrapper}>
+            <User color="#666" size={20} style={styles.inputIcon} />
+            <TextInput 
+              style={styles.loginInput} 
+              placeholder="Nombre del Operador" 
+              value={empleado}
+              onChangeText={setEmpleado}
+            />
+          </View>
+
+          <TouchableOpacity style={styles.loginButton} onPress={handleLogin}>
+            <Text style={styles.loginButtonText}>INGRESAR AL SISTEMA</Text>
+          </TouchableOpacity>
+        </View>
+        <Text style={styles.versionLabel}>v1.3 | Hugo Pérez Dev</Text>
+      </View>
+    );
+  }
+
+  // --- VISTA: APP PRINCIPAL ---
   return (
     <SafeAreaProvider>
       <SafeAreaView style={styles.container}>
@@ -170,9 +162,8 @@ const generarPDF = async () => {
         <View style={styles.header}>
           <View>
             <Text style={styles.headerTitle}>FARMAR</Text>
-            <Text style={styles.headerSubtitle}>Sucursal Empedrado</Text>
+            <Text style={styles.headerSubtitle}>📍 {sucursal.toUpperCase()} | Op: {empleado}</Text>
           </View>
-          {/* BOTÓN PDF EN EL HEADER */}
           <TouchableOpacity style={styles.pdfHeaderBtn} onPress={generarPDF}>
             <FileText color="#fff" size={24} />
             <Text style={styles.pdfHeaderText}>PDF</Text>
@@ -247,45 +238,40 @@ const generarPDF = async () => {
           <Barcode color="#fff" size={30} />
         </TouchableOpacity>
 
-        <View style={styles.footer}><Text style={styles.footerText}>v1.2 | Gestión de Stock</Text></View>
+        <View style={styles.footer}><Text style={styles.footerText}>v1.3 | Gestión de Stock</Text></View>
       </SafeAreaView>
     </SafeAreaProvider>
   );
 }
 
 const styles = StyleSheet.create({
+  // --- NUEVOS ESTILOS LOGIN ---
+  loginContainer: { flex: 1, backgroundColor: '#004a99', justifyContent: 'center', padding: 25 },
+  loginCard: { backgroundColor: '#fff', borderRadius: 20, padding: 30, elevation: 15, shadowColor: '#000', shadowOffset: { width: 0, height: 5 }, shadowOpacity: 0.3, shadowRadius: 10 },
+  loginHeaderIcon: { alignSelf: 'center', backgroundColor: '#f0f7ff', padding: 15, borderRadius: 50, marginBottom: 15 },
+  loginTitle: { fontSize: 26, fontWeight: '900', color: '#004a99', textAlign: 'center' },
+  loginSubtitle: { fontSize: 14, color: '#666', textAlign: 'center', marginBottom: 30 },
+  inputWrapper: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: '#eee', borderRadius: 12, marginBottom: 15, paddingHorizontal: 15, backgroundColor: '#fafafa' },
+  inputIcon: { marginRight: 10 },
+  loginInput: { flex: 1, height: 50, fontSize: 16, color: '#333' },
+  loginButton: { backgroundColor: '#e30613', height: 55, borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginTop: 10, elevation: 5 },
+  loginButtonText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
+  versionLabel: { textAlign: 'center', color: 'rgba(255,255,255,0.6)', marginTop: 25, fontSize: 12 },
+
+  // --- ESTILOS EXISTENTES ---
   container: { flex: 1, backgroundColor: '#F1F5F9' },
-  header: { 
-    backgroundColor: '#0056b3', 
-    padding: 15, 
-    borderBottomLeftRadius: 15, 
-    borderBottomRightRadius: 15,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center'
-  },
+  header: { backgroundColor: '#0056b3', padding: 15, borderBottomLeftRadius: 15, borderBottomRightRadius: 15, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   headerTitle: { color: '#fff', fontSize: 22, fontWeight: '900' },
-  headerSubtitle: { color: 'rgba(255,255,255,0.7)', fontSize: 12 },
+  headerSubtitle: { color: 'rgba(255,255,255,0.8)', fontSize: 11, fontWeight: 'bold' },
   pdfHeaderBtn: { alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.2)', padding: 8, borderRadius: 10 },
   pdfHeaderText: { color: '#fff', fontSize: 10, fontWeight: 'bold', marginTop: 2 },
-  
   menuContainer: { padding: 15, backgroundColor: '#fff', margin: 10, borderRadius: 15, elevation: 3 },
   menuLabel: { fontSize: 10, fontWeight: 'bold', color: '#94A3B8', marginBottom: 10, letterSpacing: 1 },
   menuGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
-  menuItem: { 
-    width: '31%', 
-    backgroundColor: '#F8FAFC', 
-    padding: 10, 
-    borderRadius: 10, 
-    alignItems: 'center', 
-    marginBottom: 8,
-    borderWidth: 1,
-    borderColor: '#E2E8F0'
-  },
+  menuItem: { width: '31%', backgroundColor: '#F8FAFC', padding: 10, borderRadius: 10, alignItems: 'center', marginBottom: 8, borderWidth: 1, borderColor: '#E2E8F0' },
   menuItemActive: { backgroundColor: '#0056b3', borderColor: '#0056b3' },
   menuText: { fontSize: 10, fontWeight: '700', color: '#64748B', marginTop: 5, textAlign: 'center' },
   menuTextActive: { color: '#fff' },
-
   searchSection: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', marginHorizontal: 15, paddingHorizontal: 15, borderRadius: 10, height: 45, borderWidth: 1, borderColor: '#E2E8F0' },
   input: { flex: 1, fontSize: 14 },
   content: { flex: 1, padding: 15 },
